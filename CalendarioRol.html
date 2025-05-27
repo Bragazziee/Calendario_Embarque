@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario de Embarque y Descanso</title>
+  <style>
+    body { font-family: sans-serif; padding: 10px; margin: 0; background-color: #f9f9f9; }
+    h1 { text-align: center; font-size: 1.5em; }
+    label, input, button { font-size: 16px; margin: 5px; }
+    .controls { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .calendar { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
+    .month { border: 1px solid #ccc; padding: 10px; width: 90%; max-width: 280px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 8px; }
+    .month h3 { text-align: center; margin: 5px 0; font-size: 1em; }
+    .days { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+    .day { padding: 5px; font-size: 0.9em; border-radius: 4px; position: relative; }
+    .embarcado { background-color: #4caf50; color: white; }
+    .descanso { background-color: #2196f3; color: white; }
+    .compartido {
+      background: linear-gradient(135deg, #4caf50 50%, #2196f3 50%);
+      color: white;
+    }
+    .festivo { background-color: gold; color: black; border: 1px solid #999; }
+    .header { font-weight: bold; }
+    .buttons { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+    @media (max-width: 600px) {
+      .month { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Calendario de Embarque y Descanso</h1>
+  <div class="controls">
+    <label for="start-date">Fecha de inicio del embarque (martes):</label>
+    <input type="date" id="start-date">
+    <div class="buttons">
+      <button onclick="generarCalendario()">Generar</button>
+      <button onclick="window.print()">Imprimir / PDF</button>
+    </div>
+  </div>
+  <div class="calendar" id="calendar"></div>
+
+  <script>
+    const festivos = [
+      { fecha: '2025-01-01', nombre: 'Año Nuevo' },
+      { fecha: '2025-03-28', nombre: 'Viernes Santo' },
+      { fecha: '2025-05-01', nombre: 'Día del Trabajador' },
+      { fecha: '2025-05-21', nombre: 'Día de las Glorias Navales' },
+      { fecha: '2025-06-29', nombre: 'San Pedro y San Pablo' },
+      { fecha: '2025-07-16', nombre: 'Virgen del Carmen' },
+      { fecha: '2025-08-15', nombre: 'Asunción de la Virgen' },
+      { fecha: '2025-09-18', nombre: 'Fiestas Patrias' },
+      { fecha: '2025-09-19', nombre: 'Día de las Glorias del Ejército' },
+      { fecha: '2025-10-12', nombre: 'Encuentro de Dos Mundos' },
+      { fecha: '2025-11-01', nombre: 'Día de Todos los Santos' },
+      { fecha: '2025-12-08', nombre: 'Inmaculada Concepción' },
+      { fecha: '2025-12-25', nombre: 'Navidad' }
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedDate = localStorage.getItem('startDate');
+      if (savedDate) {
+        document.getElementById('start-date').value = savedDate;
+        generarCalendario();
+      }
+    });
+
+    function generarCalendario() {
+      const calendar = document.getElementById('calendar');
+      calendar.innerHTML = '';
+      const startInput = document.getElementById('start-date');
+      const startDate = new Date(startInput.value);
+      if (!startInput.value) return alert('Por favor, elige una fecha');
+
+      localStorage.setItem('startDate', startInput.value);
+
+      let current = new Date(startDate);
+      const end = new Date(startDate);
+      end.setFullYear(end.getFullYear() + 1);
+
+      const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+      const estadosPorFecha = {};
+
+      let inicioCiclo = new Date(startDate);
+
+      while (inicioCiclo <= end) {
+        let fecha = new Date(inicioCiclo);
+
+        // Día 1 compartido
+        let fechaStr = fecha.toISOString().split('T')[0];
+        estadosPorFecha[fechaStr] = 'compartido';
+
+        // Días 2 al 28 embarcado
+        for (let i = 1; i < 28; i++) {
+          fecha.setDate(fecha.getDate() + 1);
+          fechaStr = fecha.toISOString().split('T')[0];
+          estadosPorFecha[fechaStr] = 'embarcado';
+        }
+
+        // Día 29 compartido (martes final)
+        fecha.setDate(fecha.getDate() + 1);
+        fechaStr = fecha.toISOString().split('T')[0];
+        estadosPorFecha[fechaStr] = 'compartido';
+
+        // Días 2 al 13 descanso (miércoles siguiente al martes compartido)
+        for (let i = 0; i < 13; i++) {
+          fecha.setDate(fecha.getDate() + 1);
+          fechaStr = fecha.toISOString().split('T')[0];
+          estadosPorFecha[fechaStr] = 'descanso';
+        }
+
+        // Día 15 compartido (martes siguiente)
+        fecha.setDate(fecha.getDate() + 1);
+        fechaStr = fecha.toISOString().split('T')[0];
+        estadosPorFecha[fechaStr] = 'compartido';
+
+        // Aseguramos que el próximo ciclo comience en martes
+        let diasHastaMartes = (9 - fecha.getDay()) % 7;
+        fecha.setDate(fecha.getDate() + diasHastaMartes);
+        inicioCiclo = new Date(fecha);
+      }
+
+      while (current <= end) {
+        const year = current.getFullYear();
+        const month = current.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+
+        const monthDiv = document.createElement('div');
+        monthDiv.className = 'month';
+        monthDiv.innerHTML = `<h3>${meses[month]} ${year}</h3><div class="days"></div>`;
+
+        const daysDiv = monthDiv.querySelector('.days');
+        const diasSemana = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+        diasSemana.forEach(dia => {
+          const header = document.createElement('div');
+          header.className = 'day header';
+          header.textContent = dia;
+          daysDiv.appendChild(header);
+        });
+
+        const primerDiaSemana = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+        for (let i = 0; i < primerDiaSemana; i++) {
+          daysDiv.appendChild(document.createElement('div'));
+        }
+
+        for (let d = 1; d <= lastDay.getDate(); d++) {
+          const dayDiv = document.createElement('div');
+          dayDiv.className = 'day';
+          const fechaActual = new Date(year, month, d);
+          const fechaISO = fechaActual.toISOString().split('T')[0];
+
+          const festivo = festivos.find(f => f.fecha === fechaISO);
+          if (festivo) {
+            dayDiv.classList.add('festivo');
+            dayDiv.title = festivo.nombre;
+          } else if (estadosPorFecha[fechaISO]) {
+            dayDiv.classList.add(estadosPorFecha[fechaISO]);
+          }
+
+          dayDiv.textContent = d;
+          daysDiv.appendChild(dayDiv);
+        }
+
+        calendar.appendChild(monthDiv);
+        current.setMonth(current.getMonth() + 1);
+        current.setDate(1);
+      }
+    }
+  </script>
+</body>
+</html>
